@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>グラデーションコード変換・整形ツール</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+        }
+        .container {
+            max-width: 800px;
+        }
+        .code-box {
+            background-color: #f3f4f6;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+            overflow-x: auto;
+            white-space: nowrap;
+            position: relative;
+        }
+        #output-code {
+            font-family: 'Fira Code', 'Roboto Mono', monospace;
+            font-size: 0.875rem;
+            color: #1f2937;
+        }
+        .preview-box {
+            height: 120px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: background 0.3s ease;
+            width: 100%;
+        }
+        .copy-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background-color: #3b82f6;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            opacity: 0.8;
+            transition: opacity 0.2s, background-color 0.2s;
+        }
+        .copy-btn:hover {
+            opacity: 1;
+            background-color: #2563eb;
+        }
+        .copy-success {
+            background-color: #10b981;
+        }
+        .color-picker-group {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .color-picker-container {
+            position: relative;
+            width: 100%;
+            height: 120px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        #sv-picker-canvas {
+            width: 100%;
+            height: 100%;
+        }
+        .picker-dot {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 0 0 1px black;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 10;
+        }
+        .hue-slider-container,
+        .alpha-slider-container {
+            position: relative;
+            height: 24px;
+            width: 100%;
+            margin-top: 1rem;
+        }
+        .hue-slider-container {
+            background: linear-gradient(to right,
+                hsl(0, 100%, 50%),
+                hsl(60, 100%, 50%),
+                hsl(120, 100%, 50%),
+                hsl(180, 100%, 50%),
+                hsl(240, 100%, 50%),
+                hsl(300, 100%, 50%),
+                hsl(360, 100%, 50%)
+            );
+            border-radius: 9999px;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+        }
+        .alpha-slider-container {
+            background-image: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 0 / 16px 16px;
+            border-radius: 9999px;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+        }
+        .hue-slider,
+        .alpha-slider {
+            width: 100%;
+            height: 100%;
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+        }
+        .hue-slider::-webkit-slider-thumb,
+        .alpha-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #fff;
+            border: 2px solid #5a5a5a;
+            box-shadow: 0 0 4px rgba(0,0,0,0.3);
+        }
+        .rgba-display {
+            font-family: 'Fira Code', 'Roboto Mono', monospace;
+            font-size: 0.875rem;
+            color: #4b5563;
+            text-align: center;
+        }
+    </style>
+</head>
+<body class="p-8">
+    <div class="container mx-auto bg-white p-8 rounded-2xl shadow-lg">
+        <h1 class="text-3xl font-bold text-center mb-6 text-gray-800">グラデーションコード変換・整形ツール</h1>
+        <p class="text-center text-gray-600 mb-8">
+            RGBAをHEXに変換し、コードを整形します。
+        </p>
+
+        <!-- 入力セクション -->
+        <div class="mb-6">
+            <h2 class="text-lg font-semibold text-gray-700 mb-2">グラデーションの種類を選択</h2>
+            <div class="flex flex-wrap gap-2 mb-4">
+                <button data-gradient-type="linear-gradient()" class="type-btn bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-full shadow-md transition-all duration-300 transform hover:scale-105">linear-gradient()</button>
+                <button data-gradient-type="radial-gradient()" class="type-btn bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded-full shadow-md transition-all duration-300 transform hover:scale-105">radial-gradient()</button>
+                <button data-gradient-type="radial-gradient(circle," class="type-btn bg-fuchsia-500 hover:bg-fuchsia-600 text-white font-semibold py-2 px-4 rounded-full shadow-md transition-all duration-300 transform hover:scale-105">radial-gradient(circle,)</button>
+                <button data-gradient-type="conic-gradient()" class="type-btn bg-pink-500 hover:bg-pink-600 text-white font-semibold py-2 px-4 rounded-full shadow-md transition-all duration-300 transform hover:scale-105">conic-gradient()</button>
+                <button data-gradient-type="repeating-" class="type-btn bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-full shadow-md transition-all duration-300 transform hover:scale-105">repeating-</button>
+            </div>
+            
+            <h2 class="text-lg font-semibold text-gray-700 mb-2">カラー選択</h2>
+            <div class="color-picker-group">
+                <!-- 彩度・明度選択エリア -->
+                <div class="color-picker-container">
+                    <canvas id="sv-picker-canvas"></canvas>
+                    <div id="picker-dot" class="picker-dot"></div>
+                </div>
+                <!-- 色相スライダー -->
+                <div class="hue-slider-container">
+                    <input type="range" id="hue-slider" class="hue-slider" min="0" max="360" value="215">
+                </div>
+                <!-- 透明度スライダー -->
+                <div class="alpha-slider-container">
+                    <input type="range" id="alpha-slider" class="alpha-slider" min="0" max="1" step="0.01" value="1">
+                </div>
+            </div>
+            <div class="flex items-center gap-2 mt-4">
+                <div id="color-preview-box" class="w-12 h-12 rounded-lg border-2 border-gray-300 shadow-md"></div>
+                <div id="rgba-display" class="rgba-display flex-grow text-center">rgba(59, 130, 246, 1)</div>
+                <button id="add-color-btn" class="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-4 rounded-full shadow-md transition-all duration-300 transform hover:scale-105">RGBAカラーを追加</button>
+            </div>
+
+            <h2 class="text-lg font-semibold text-gray-700 mb-2 mt-4">入力コード</h2>
+            <textarea id="css-input" rows="6" class="w-full p-4 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow font-mono text-sm resize-none" spellcheck="false" placeholder="例: linear-gradient(to right, #6a11cbcc, #2575fcff);"></textarea>
+        </div>
+
+        <!-- プレビューセクション -->
+        <div class="mb-6">
+            <h3 class="text-sm font-semibold text-gray-600 mb-2 text-center">変換後のプレビュー</h3>
+            <div id="converted-preview" class="preview-box"></div>
+        </div>
+
+        <!-- 出力セクション -->
+        <div>
+            <h2 class="text-lg font-semibold text-gray-700 mb-2">変換後コード</h2>
+            <div class="code-box">
+                <pre id="output-code" class="whitespace-pre-wrap"></pre>
+                <button id="copy-btn" class="copy-btn">コピー</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const cssInput = document.getElementById('css-input');
+            const addColorButton = document.getElementById('add-color-btn');
+            const outputCode = document.getElementById('output-code');
+            const convertedPreview = document.getElementById('converted-preview');
+            const typeButtons = document.querySelectorAll('.type-btn');
+            const copyButton = document.getElementById('copy-btn');
+            let lastValidGradient = "";
+
+            // --- Custom Color Picker Logic ---
+            const svPickerCanvas = document.getElementById('sv-picker-canvas');
+            const svCtx = svPickerCanvas.getContext('2d');
+            const pickerDot = document.getElementById('picker-dot');
+            const hueSlider = document.getElementById('hue-slider');
+            const alphaSlider = document.getElementById('alpha-slider');
+            const rgbaDisplay = document.getElementById('rgba-display');
+            const colorPreviewBox = document.getElementById('color-preview-box');
+
+            let isDragging = false;
+            let currentHSV = { h: 215, s: 1, v: 1 };
+            let currentAlpha = 1;
+            let dotPosition = { x: 0, y: 0 };
+            
+            // HSVからRGBへの変換
+            // 参考: https://en.wikipedia.org/wiki/HSV_color_space
+            function hsvToRgb(h, s, v) {
+                let r, g, b;
+                const i = Math.floor(h * 6);
+                const f = h * 6 - i;
+                const p = v * (1 - s);
+                const q = v * (1 - f * s);
+                const t = v * (1 - (1 - f) * s);
+                switch (i % 6) {
+                    case 0: r = v, g = t, b = p; break;
+                    case 1: r = q, g = v, b = p; break;
+                    case 2: r = p, g = v, b = t; break;
+                    case 3: r = p, g = q, b = v; break;
+                    case 4: r = t, g = p, b = v; break;
+                    case 5: r = v, g = p, b = q; break;
+                }
+                return {
+                    r: Math.round(r * 255),
+                    g: Math.round(g * 255),
+                    b: Math.round(b * 255)
+                };
+            }
+
+            // 彩度・明度選択エリアの描画
+            function drawSvPicker() {
+                const width = svPickerCanvas.width;
+                const height = svPickerCanvas.height;
+                const hue = currentHSV.h;
+
+                svCtx.clearRect(0, 0, width, height);
+
+                // 基本の色相を塗りつぶし
+                svCtx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+                svCtx.fillRect(0, 0, width, height);
+
+                // 左から右への白のグラデーション（彩度）
+                const whiteGradient = svCtx.createLinearGradient(0, 0, width, 0);
+                whiteGradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+                whiteGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                svCtx.fillStyle = whiteGradient;
+                svCtx.fillRect(0, 0, width, height);
+
+                // 上から下への黒のグラデーション（明度）
+                const blackGradient = svCtx.createLinearGradient(0, 0, 0, height);
+                blackGradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+                blackGradient.addColorStop(1, 'rgba(0, 0, 0, 1)');
+                svCtx.fillStyle = blackGradient;
+                svCtx.fillRect(0, 0, width, height);
+            }
+
+            // UIの更新
+            function updateUI() {
+                const rgb = hsvToRgb(currentHSV.h / 360, currentHSV.s, currentHSV.v);
+                const rgbaString = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${currentAlpha.toFixed(2)})`;
+                
+                rgbaDisplay.textContent = rgbaString;
+                colorPreviewBox.style.backgroundColor = rgbaString;
+            }
+
+            // イベントハンドラ
+            function handleSvMove(e) {
+                const rect = svPickerCanvas.getBoundingClientRect();
+                const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+                const y = Math.max(0, Math.min(e.clientY - rect.top, rect.height));
+
+                currentHSV.s = x / rect.width;
+                currentHSV.v = 1 - y / rect.height;
+
+                pickerDot.style.left = `${x}px`;
+                pickerDot.style.top = `${y}px`;
+                
+                updateUI();
+            }
+
+            svPickerCanvas.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                handleSvMove(e);
+            });
+            svPickerCanvas.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    handleSvMove(e);
+                }
+            });
+            svPickerCanvas.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+            svPickerCanvas.addEventListener('mouseleave', () => {
+                isDragging = false;
+            });
+            
+            hueSlider.addEventListener('input', (e) => {
+                currentHSV.h = parseFloat(e.target.value);
+                drawSvPicker();
+                updateUI();
+            });
+
+            alphaSlider.addEventListener('input', (e) => {
+                currentAlpha = parseFloat(e.target.value);
+                updateUI();
+            });
+
+            // 初期化
+            drawSvPicker();
+            updateUI();
+            
+            // --- End Custom Color Picker Logic ---
+
+
+            /**
+             * RGBA値を8桁のHEXコードに変換する関数。
+             * @param {number} r - 赤の成分 (0-255).
+             * @param {number} g - 緑の成分 (0-255).
+             * @param {number} b - 青の成分 (0-255).
+             * @param {number} a - アルファ（不透明度） (0-1).
+             * @returns {string} 変換された8桁のHEXコード.
+             */
+            function rgbaToHex(r, g, b, a) {
+                const toHex = (c) => Math.round(c).toString(16).padStart(2, '0');
+                const hexR = toHex(r);
+                const hexG = toHex(g);
+                const hexB = toHex(b);
+                const hexA = toHex(a * 255);
+                return `#${hexR}${hexG}${hexB}${hexA}`;
+            }
+
+            /**
+             * グラデーションCSSコードを変換・整形する関数。
+             */
+            function convertGradient() {
+                const originalCode = cssInput.value;
+                let convertedCode = originalCode;
+                
+                // 1. RGBAをHEXに変換
+                const rgbaRegex = /rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)/g;
+                convertedCode = convertedCode.replace(rgbaRegex, (match, r, g, b, a) => {
+                    const alpha = a ? parseFloat(a) : 1;
+                    return rgbaToHex(r, g, b, alpha);
+                });
+
+                // 2. turnをdegに変換
+                const turnRegex = /(\d*\.?\d+)\s*turn/g;
+                convertedCode = convertedCode.replace(turnRegex, (match, turns) => {
+                    return `${parseFloat(turns) * 360}deg`;
+                });
+
+                // 3. 不必要なスペースを削除
+                convertedCode = convertedCode.replace(/\s*,\s*/g, ',');
+                convertedCode = convertedCode.replace(/\(\s*/g, '(');
+                convertedCode = convertedCode.replace(/\s*\)/g, ')');
+                convertedCode = convertedCode.replace(/\s*%/g, '%');
+                convertedCode = convertedCode.replace(/\s*deg/g, 'deg');
+                convertedCode = convertedCode.replace(/\s{2,}/g, ' ');
+
+                // 4. 改行、セミコロン、コロンを削除
+                convertedCode = convertedCode.replace(/[:;]/g, '').replace(/\s*[\r\n]+\s*/g, ' ').trim();
+
+                outputCode.textContent = convertedCode;
+                
+                // 変換後のコードをプレビューに適用
+                applyGradient(convertedPreview, convertedCode);
+            }
+
+            /**
+             * 要素にグラデーションを適用する関数。
+             * @param {HTMLElement} element - グラデーションを適用する要素。
+             * @param {string} cssCode - 適用するCSSコード。
+             */
+            function applyGradient(element, cssCode) {
+                try {
+                    const testElement = document.createElement('div');
+                    testElement.style.background = cssCode;
+
+                    if (testElement.style.background) {
+                        element.style.background = cssCode;
+                        lastValidGradient = cssCode;
+                    } else {
+                        element.style.background = lastValidGradient;
+                    }
+                } catch (e) {
+                    console.error("無効なCSSコードです:", e);
+                    element.style.background = lastValidGradient;
+                }
+            }
+
+            // inputイベントで自動変換を実行
+            cssInput.addEventListener('input', () => {
+                convertGradient();
+            });
+
+            // RGBAカラーを追加するボタンの機能
+            addColorButton.addEventListener('click', () => {
+                const rgb = hsvToRgb(currentHSV.h / 360, currentHSV.s, currentHSV.v);
+                const rgba = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${currentAlpha.toFixed(2)})`;
+                
+                const currentCode = cssInput.value.trim();
+                const start = cssInput.selectionStart;
+                const end = cssInput.selectionEnd;
+                
+                // カーソル位置にRGBAコードを挿入
+                if (currentCode === '') {
+                    cssInput.value = rgba;
+                } else {
+                    const lastChar = currentCode.slice(currentCode.length - 1);
+                    const newCode = (lastChar === '(' || lastChar === ',' || lastChar === ' ') ? rgba : `, ${rgba}`;
+                    cssInput.value = currentCode.substring(0, end) + newCode + currentCode.substring(end);
+                }
+
+                // カーソルを挿入したテキストの末尾に移動
+                const newPos = (currentCode === '') ? rgba.length : end + `, ${rgba}`.length;
+                cssInput.setSelectionRange(newPos, newPos);
+                
+                convertGradient(); // 自動変換をトリガー
+                cssInput.focus();
+            });
+
+            // ボタンが押されたら入力コードに構文を追加
+            typeButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const type = button.getAttribute('data-gradient-type');
+                    let currentCode = cssInput.value.trim();
+                    let newCode;
+
+                    if (type === 'repeating-') {
+                         newCode = 'repeating-linear-gradient()';
+                    } else {
+                         newCode = type;
+                    }
+
+                    if (currentCode === '') {
+                        cssInput.value = newCode;
+                    } else {
+                        cssInput.value = `${newCode}, ${currentCode}`;
+                    }
+
+                    convertGradient();
+                });
+            });
+
+            // コピーボタンの機能
+            copyButton.addEventListener('click', () => {
+                const textToCopy = `background: ${outputCode.textContent};`;
+                
+                const tempTextarea = document.createElement('textarea');
+                tempTextarea.value = textToCopy;
+                document.body.appendChild(tempTextarea);
+                tempTextarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(tempTextarea);
+
+                copyButton.textContent = 'コピー完了！';
+                copyButton.classList.add('copy-success');
+                setTimeout(() => {
+                    copyButton.textContent = 'コピー';
+                    copyButton.classList.remove('copy-success');
+                }, 1500);
+            });
+
+            convertGradient();
+        });
+    </script>
+</body>
+</html>
