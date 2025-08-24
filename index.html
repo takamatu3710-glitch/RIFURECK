@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gradient Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #1f2937;
+        }
+
+        /* スライダーのスタイル */
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #2563eb;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            box-shadow: 0 0 2px rgba(0,0,0,0.3);
+            transition: background-color 0.2s;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: #2563eb;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            box-shadow: 0 0 2px rgba(0,0,0,0.3);
+            transition: background-color 0.2s;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-4 sm:p-8">
+    <div class="container mx-auto p-6 bg-white rounded-xl shadow-2xl max-w-4xl w-full">
+        <h1 class="text-3xl sm:text-4xl font-bold text-center mb-6 text-gray-800">グラデーションジェネレーター</h1>
+        <p class="text-center text-gray-600 mb-8">
+            CSSのグラデーションコードを入力して、リアルタイムでプレビューを確認できます。
+        </p>
+
+        <div class="flex flex-col gap-8">
+            <!-- プレビューエリア -->
+            <div class="rounded-lg shadow-inner overflow-hidden flex items-center justify-center border-2 border-gray-300 w-full">
+                <div id="previewBox" class="bg-gray-200 w-full" style="height: 350px; background: linear-gradient(to right, #6EE7B7, #3B82F6);">
+                    <!-- プレビューコンテンツ -->
+                </div>
+            </div>
+
+            <!-- 入力とコントロール -->
+            <div class="flex flex-col gap-4">
+                <div>
+                    <label for="gradientInput" class="block text-sm font-medium text-gray-700 mb-2">
+                        CSSグラデーションコードを入力してください:
+                    </label>
+                    <textarea id="gradientInput" rows="5" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200" placeholder="例: conic-gradient(red, yellow, lime, blue, red);">linear-gradient(to right, #6EE7B7, #3B82F6);</textarea>
+                </div>
+                
+                <!-- 縦横比コントロール -->
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">プレビューサイズ</h3>
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <div class="flex-1">
+                            <label for="widthSlider" class="block text-sm font-medium text-gray-700 mb-2">幅: <span id="widthValue">100%</span></label>
+                            <input type="range" id="widthSlider" min="10" max="100" value="100" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                        <div class="flex-1">
+                            <label for="heightSlider" class="block text-sm font-medium text-gray-700 mb-2">高さ: <span id="heightValue">350px</span></label>
+                            <input type="range" id="heightSlider" min="50" max="800" value="350" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button id="resetButton" class="w-full py-3 px-6 bg-gray-500 text-white font-semibold rounded-lg shadow-md hover:bg-gray-600 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2">リセット</button>
+                </div>
+
+                <!-- エラーメッセージ -->
+                <div id="errorMessage" class="hidden p-3 mt-4 bg-red-100 text-red-700 rounded-lg border border-red-200" role="alert">
+                    <div class="flex items-center">
+                        <svg class="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.707-11.293a1 1 0 00-1.414-1.414L7.586 8.586 6.293 7.293a1 1 0 00-1.414 1.414L8.586 10l-2.707 2.707a1 1 0 101.414 1.414L10 11.414l2.707 2.707a1 1 0 001.414-1.414L11.414 10l2.707-2.707z" clip-rule="evenodd"></path>
+                        </svg>
+                        <p id="errorText" class="text-sm font-medium">無効なグラデーションコードです。</p>
+                    </div>
+                </div>
+
+                <!-- 成功メッセージ -->
+                <div id="successMessage" class="hidden p-3 mt-4 bg-green-100 text-green-700 rounded-lg border border-green-200" role="alert">
+                    <div class="flex items-center">
+                        <svg class="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                        </svg>
+                        <p class="text-sm font-medium">グラデーションが正常に適用されました！</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM要素を取得
+        const previewBox = document.getElementById('previewBox');
+        const gradientInput = document.getElementById('gradientInput');
+        const resetButton = document.getElementById('resetButton');
+        const errorMessage = document.getElementById('errorMessage');
+        const successMessage = document.getElementById('successMessage');
+        const widthSlider = document.getElementById('widthSlider');
+        const heightSlider = document.getElementById('heightSlider');
+        const widthValue = document.getElementById('widthValue');
+        const heightValue = document.getElementById('heightValue');
+
+        // 初期グラデーションコード
+        const initialGradient = 'linear-gradient(to right, #6EE7B7, #3B82F6);';
+        
+        /**
+         * エラーメッセージを表示/非表示にする関数
+         * @param {string} text - 表示するエラーテキスト
+         */
+        function showError(text) {
+            document.getElementById('errorText').textContent = text;
+            errorMessage.classList.remove('hidden');
+            successMessage.classList.add('hidden');
+        }
+
+        /**
+         * 成功メッセージを表示する関数
+         */
+        function showSuccess() {
+            successMessage.classList.remove('hidden');
+            errorMessage.classList.add('hidden');
+        }
+
+        /**
+         * メッセージをすべて非表示にする関数
+         */
+        function hideMessages() {
+            errorMessage.classList.add('hidden');
+            successMessage.classList.add('hidden');
+        }
+
+        /**
+         * グラデーションを適用する関数
+         */
+        function applyGradient() {
+            const code = gradientInput.value.trim();
+            hideMessages(); // メッセージをリセット
+
+            // グラデーションコードが空でないことを確認
+            if (code === '') {
+                showError('グラデーションコードが空です。有効なコードを入力してください。');
+                return;
+            }
+
+            // 簡易的なバリデーション
+            const validGradients = ['linear-gradient', 'radial-gradient', 'conic-gradient', 'repeating-linear-gradient', 'repeating-radial-gradient', 'repeating-conic-gradient'];
+            const isValid = validGradients.some(gradient => code.startsWith(gradient));
+            if (!isValid) {
+                showError('無効なグラデーションコードです。`linear-gradient`, `radial-gradient`, `conic-gradient` などで始めてください。');
+                return;
+            }
+
+            try {
+                // backgroundプロパティを直接設定
+                previewBox.style.background = code;
+                showSuccess();
+            } catch (e) {
+                // 例外が発生した場合は無効なコードとして扱う
+                showError('無効なグラデーションコードです。CSSの文法を確認してください。');
+            }
+        }
+
+        /**
+         * 入力内容をリセットする関数
+         */
+        function resetGradient() {
+            gradientInput.value = initialGradient;
+            widthSlider.value = 100;
+            heightSlider.value = 350;
+            updatePreviewBoxSize();
+            applyGradient(); // 初期状態に戻す
+            hideMessages();
+        }
+
+        /**
+         * スライダーの値に応じてプレビューボックスのサイズを更新する関数
+         */
+        function updatePreviewBoxSize() {
+            const width = widthSlider.value;
+            const height = heightSlider.value;
+            previewBox.style.width = width + '%';
+            previewBox.style.height = height + 'px';
+            widthValue.textContent = width + '%';
+            heightValue.textContent = height + 'px';
+        }
+
+        // イベントリスナーを設定
+        // 入力フィールドの変更をリッスンして、自動的に適用
+        gradientInput.addEventListener('input', applyGradient);
+        resetButton.addEventListener('click', resetGradient);
+        widthSlider.addEventListener('input', updatePreviewBoxSize);
+        heightSlider.addEventListener('input', updatePreviewBoxSize);
+        
+        // Enterキーでも適用できるようにする（念のため残す）
+        gradientInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault(); // 新しい行の挿入を防ぐ
+                applyGradient();
+            }
+        });
+        
+        // 初回ロード時に初期グラデーションとサイズを適用
+        window.onload = () => {
+            resetGradient();
+            updatePreviewBoxSize();
+        };
+    </script>
+</body>
+</html>
